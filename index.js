@@ -6,54 +6,70 @@ const app = express();
 app.use(cors());
 
 /**
- * Appel d'une API publique sans authentification
- * Requête vers /proxy/public
+ * Route : /proxy/public
+ * Appel une API publique sans clé d'authentification
  */
 app.get('/proxy/public', async (req, res) => {
-  const { url, ...query } = req.query;
-
-  if (!url) {
-    return res.status(400).json({ error: 'Missing URL parameter' });
+  let rawUrl = req.query.url;
+  if (!rawUrl) {
+    return res.status(400).json({ error: 'Missing url parameter' });
   }
 
   try {
+    const url = decodeURIComponent(rawUrl);
+    const query = { ...req.query };
+    delete query.url;
+
+    console.log(`[PUBLIC] → ${url} with params`, query);
+
     const response = await axios.get(url, { params: query });
     res.json(response.data);
   } catch (error) {
+    console.error('[ERROR /proxy/public]', error.message);
     res.status(error.response?.status || 500).json({
       error: error.message || 'Unknown error',
-      details: error.response?.data || null
+      data: error.response?.data || null
     });
   }
 });
 
 /**
- * Appel d'une API sécurisée avec clé API
- * Requête vers /proxy/secure
+ * Route : /proxy/secure
+ * Appel une API sécurisée avec une clé API injectée dans la query
  */
 app.get('/proxy/secure', async (req, res) => {
-  const { url, auth_token, auth_field = 'apikey', ...query } = req.query;
+  let rawUrl = req.query.url;
+  const authToken = req.query.auth_token;
+  const authField = req.query.auth_field || 'apikey';
 
-  if (!url || !auth_token) {
-    return res.status(400).json({ error: 'Missing URL or auth_token' });
+  if (!rawUrl || !authToken) {
+    return res.status(400).json({ error: 'Missing url or auth_token' });
   }
 
-  // Injecte dynamiquement la clé dans la query string
-  query[auth_field] = auth_token;
-
   try {
+    const url = decodeURIComponent(rawUrl);
+    const query = { ...req.query };
+    delete query.url;
+    delete query.auth_token;
+    delete query.auth_field;
+
+    // Inject the token dynamically
+    query[authField] = authToken;
+
+    console.log(`[SECURE] → ${url} using ${authField}=**** with params`, query);
+
     const response = await axios.get(url, { params: query });
     res.json(response.data);
   } catch (error) {
+    console.error('[ERROR /proxy/secure]', error.message);
     res.status(error.response?.status || 500).json({
       error: error.message || 'Unknown error',
-      details: error.response?.data || null
+      data: error.response?.data || null
     });
   }
 });
 
-// Lancement du serveur
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(`Proxy running on port ${PORT}`);
+  console.log(`✅ Proxy running on port ${PORT}`);
 });
