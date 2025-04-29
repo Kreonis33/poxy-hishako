@@ -68,8 +68,14 @@ app.get('/proxy/secure', async (req, res) => {
     });
   }
 });
+// ✅ Route de test de vie du serveur
+app.get('/test', (req, res) => {
+  res.json({ status: '🟢 Proxy Hishako actif', time: new Date().toISOString() });
+});
 
+// 🚀 Démarrage du serveur
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`✅ Proxy running on port ${PORT}`);
 });
+
